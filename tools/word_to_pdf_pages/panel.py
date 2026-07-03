@@ -6,7 +6,7 @@ from tkinter import ttk
 import pythoncom
 
 from shared.themes import STATUS_ICONS
-from shared.widgets import WrapLabel
+from shared.widgets import OutputPathOptions, WrapLabel
 from tools.word_to_pdf_pages.converter import convert_document
 
 TOOL_ID = "word_to_pdf_pages"
@@ -15,9 +15,10 @@ TOOL_DESCRIPTION = "Каждая страница исходного докум�
 
 
 class WordToPdfPagesPanel(ttk.Frame):
-    def __init__(self, parent, style: ttk.Style):
+    def __init__(self, parent, style: ttk.Style, settings: dict):
         super().__init__(parent)
         self.style = style
+        self.settings = settings
 
         self.input_var = StringVar()
         self.status_var = StringVar(value="Ожидание запуска")
@@ -47,6 +48,8 @@ class WordToPdfPagesPanel(ttk.Frame):
 
         self.run_btn = ttk.Button(card, text="Конвертировать", command=self.on_convert)
         self.run_btn.grid(row=2, column=0, sticky="w", pady=(12, 0))
+
+        self.output_options = OutputPathOptions(card, TOOL_ID, self.settings)
 
         status_row = ttk.Frame(self)
         status_row.grid(row=3, column=0, sticky="ew", pady=(0, 8))
@@ -81,6 +84,7 @@ class WordToPdfPagesPanel(ttk.Frame):
         self.run_btn.configure(state=state)
         self.pick_btn.configure(state=state)
         self.input_entry.configure(state=state)
+        self.output_options.set_busy(busy)
 
     def pick_input(self):
         filetypes = [
@@ -102,11 +106,18 @@ class WordToPdfPagesPanel(ttk.Frame):
             self.set_status("error", "Не выбран входной файл.")
             return
 
+        path_error = self.output_options.validate()
+        if path_error:
+            self.set_status("error", path_error)
+            return
+
+        output_dir = self.output_options.get_output_dir()
+
         self.progress_var.set(0)
         self.set_busy(True)
         self.set_status("working", "Подготовка конвертации...")
 
-        worker = Thread(target=self._convert_worker, args=(input_path,), daemon=True)
+        worker = Thread(target=self._convert_worker, args=(input_path, output_dir), daemon=True)
         worker.start()
 
     def _ui_progress(self, stage: str, current=None, total=None):
@@ -130,13 +141,13 @@ class WordToPdfPagesPanel(ttk.Frame):
 
         self.progress_var.set(min(99, percent))
 
-    def _convert_worker(self, input_path: str):
+    def _convert_worker(self, input_path: str, output_dir):
         def callback(*args):
             self.after(0, self._ui_progress, *args)
 
         try:
             pythoncom.CoInitialize()
-            output = convert_document(input_path, on_progress=callback)
+            output = convert_document(input_path, on_progress=callback, output_dir=output_dir)
             self.after(0, self._on_success, str(output))
         except Exception as exc:
             details = "".join(traceback.format_exception_only(type(exc), exc)).strip()

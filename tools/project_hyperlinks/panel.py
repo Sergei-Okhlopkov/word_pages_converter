@@ -4,7 +4,7 @@ from tkinter import StringVar, filedialog
 from tkinter import ttk
 
 from shared.themes import STATUS_ICONS
-from shared.widgets import WrapLabel
+from shared.widgets import OutputPathOptions, WrapLabel
 from tools.project_hyperlinks.processor import process_file
 
 TOOL_ID = "project_hyperlinks"
@@ -17,9 +17,10 @@ TOOL_DESCRIPTION = (
 
 
 class ProjectHyperlinksPanel(ttk.Frame):
-    def __init__(self, parent, style: ttk.Style):
+    def __init__(self, parent, style: ttk.Style, settings: dict):
         super().__init__(parent)
         self.style = style
+        self.settings = settings
 
         self.input_var = StringVar()
         self.status_var = StringVar(value="Ожидание запуска")
@@ -47,6 +48,8 @@ class ProjectHyperlinksPanel(ttk.Frame):
 
         self.run_btn = ttk.Button(card, text="Создать гиперссылки", command=self.on_process)
         self.run_btn.grid(row=2, column=0, sticky="w", pady=(12, 0))
+
+        self.output_options = OutputPathOptions(card, TOOL_ID, self.settings)
 
         status_row = ttk.Frame(self)
         status_row.grid(row=3, column=0, sticky="ew", pady=(0, 8))
@@ -78,6 +81,7 @@ class ProjectHyperlinksPanel(ttk.Frame):
         self.run_btn.configure(state=state)
         self.pick_btn.configure(state=state)
         self.input_entry.configure(state=state)
+        self.output_options.set_busy(busy)
 
     def pick_input(self):
         filetypes = [
@@ -98,15 +102,22 @@ class ProjectHyperlinksPanel(ttk.Frame):
             self.set_status("error", "Не выбран входной файл.")
             return
 
+        path_error = self.output_options.validate()
+        if path_error:
+            self.set_status("error", path_error)
+            return
+
+        output_dir = self.output_options.get_output_dir()
+
         self.set_busy(True)
         self.set_status("working", "Обработка файла...")
 
-        worker = Thread(target=self._process_worker, args=(input_path,), daemon=True)
+        worker = Thread(target=self._process_worker, args=(input_path, output_dir), daemon=True)
         worker.start()
 
-    def _process_worker(self, input_path: str):
+    def _process_worker(self, input_path: str, output_dir):
         try:
-            output = process_file(input_path)
+            output = process_file(input_path, output_dir=output_dir)
             self.after(0, self._on_success, str(output))
         except Exception as exc:
             details = "".join(traceback.format_exception_only(type(exc), exc)).strip()

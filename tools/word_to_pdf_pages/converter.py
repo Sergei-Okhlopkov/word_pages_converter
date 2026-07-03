@@ -145,18 +145,18 @@ def pdf_to_docx_images(pdf_path: str, output_docx_path: str, dpi: int, on_progre
         pdf_doc.close()
 
 
-def next_output_path(input_path: str) -> Path:
+def next_output_path(input_path: str, output_dir: Path | None = None) -> Path:
     input_file = Path(input_path)
-    base = input_file.with_name(f"Converted_{input_file.stem}")
-    candidate = base.with_suffix(".docx")
+    directory = output_dir if output_dir is not None else input_file.parent
+    candidate = directory / f"Converted_{input_file.stem}.docx"
     if not candidate.exists():
         return candidate
-    return input_file.with_name(f"{base.name}1.docx")
+    return directory / f"Converted_{input_file.stem}1.docx"
 
 
-def convert_document(input_path: str, on_progress=None) -> Path:
+def convert_document(input_path: str, on_progress=None, output_dir: Path | None = None) -> Path:
     ensure_supported_extension(input_path)
-    output_path = next_output_path(input_path)
+    output_path = next_output_path(input_path, output_dir=output_dir)
     with tempfile.TemporaryDirectory() as temp_dir:
         temp_pdf = str(Path(temp_dir) / "intermediate.pdf")
         if on_progress:

@@ -35,12 +35,12 @@ def display_value(number: str):
     return int(number) if number.isdigit() else number
 
 
-def output_path(input_path: Path) -> Path:
-    output_name = f"Hyper_{input_path.stem}.xlsx"
-    candidate = input_path.with_name(output_name)
+def output_path(input_path: Path, output_dir: Path | None = None) -> Path:
+    directory = output_dir if output_dir is not None else input_path.parent
+    candidate = directory / f"Hyper_{input_path.stem}.xlsx"
     if not candidate.exists():
         return candidate
-    return input_path.with_name(f"Hyper_{input_path.stem}1.xlsx")
+    return directory / f"Hyper_{input_path.stem}1.xlsx"
 
 
 def issue_url(number: str) -> str:
@@ -96,10 +96,10 @@ def process_excel(input_path: Path, output_file: Path) -> None:
     workbook.save(output_file)
 
 
-def process_file(input_path: str) -> Path:
+def process_file(input_path: str, output_dir: Path | None = None) -> Path:
     ensure_supported_extension(input_path)
     source = Path(input_path)
-    destination = output_path(source)
+    destination = output_path(source, output_dir=output_dir)
 
     if source.suffix.lower() == ".csv":
         csv_to_excel(source, destination)

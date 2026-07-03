@@ -20,6 +20,7 @@ TOOLS = [
 ]
 
 SIDEBAR_WIDTH = 260
+SIDEBAR_PAD = (10, 12, 12, 12)
 
 
 class App:
@@ -48,11 +49,10 @@ class App:
         self.root.columnconfigure(1, weight=1)
         self.root.rowconfigure(0, weight=1)
 
-        self.sidebar = ttk.Frame(self.root, padding=12, width=SIDEBAR_WIDTH, style="Sidebar.TFrame")
-        self.sidebar.grid(row=0, column=0, sticky="ns")
-        self.sidebar.grid_propagate(False)
+        self.sidebar = ttk.Frame(self.root, padding=SIDEBAR_PAD, style="Sidebar.TFrame")
+        self.sidebar.grid(row=0, column=0, sticky="nsew")
 
-        menu_wrap = SIDEBAR_WIDTH - 48
+        menu_wrap = SIDEBAR_WIDTH - SIDEBAR_PAD[0] - SIDEBAR_PAD[2] - 12
 
         ttk.Label(self.sidebar, text="Инструменты", font=("Segoe UI", 12, "bold"), style="Sidebar.TLabel").pack(
             anchor="w", pady=(0, 12)
@@ -77,7 +77,7 @@ class App:
         self.content.rowconfigure(0, weight=1)
 
         for tool in TOOLS:
-            panel = tool["panel_cls"](self.content, self.style)
+            panel = tool["panel_cls"](self.content, self.style, self.settings)
             panel.grid(row=0, column=0, sticky="nsew")
             self.panels[tool["id"]] = panel
 
@@ -104,9 +104,41 @@ class App:
 
         self.style.configure(".", background=colors["bg"], foreground=colors["text"])
         self.style.configure("TFrame", background=colors["bg"])
-        self.style.configure("Sidebar.TFrame", background=colors["sidebar"])
+        self.style.configure("Sidebar.TFrame", background=colors["sidebar"], borderwidth=0, relief="flat")
         self.style.configure("TLabel", background=colors["bg"], foreground=colors["text"], font=("Segoe UI", 10))
+        self.style.configure("Muted.TLabel", background=colors["bg"], foreground=colors["muted"], font=("Segoe UI", 9))
         self.style.configure("Sidebar.TLabel", background=colors["sidebar"], foreground=colors["text"], font=("Segoe UI", 10))
+        self.style.configure(
+            "TCheckbutton",
+            background=colors["bg"],
+            foreground=colors["text"],
+            focuscolor=colors["bg"],
+            borderwidth=0,
+            relief="flat",
+            font=("Segoe UI", 10),
+        )
+        self.style.map(
+            "TCheckbutton",
+            background=[
+                ("active", colors["panel"]),
+                ("pressed", colors["panel"]),
+                ("disabled", colors["bg"]),
+            ],
+            foreground=[
+                ("active", colors["text"]),
+                ("disabled", colors["muted"]),
+            ],
+            indicatorcolor=[
+                ("selected", "#ffffff"),
+                ("!selected", colors["muted"]),
+            ],
+            indicatorbackground=[
+                ("selected", colors["accent"]),
+                ("active", colors["panel"]),
+                ("pressed", colors["panel"]),
+                ("!selected", colors["entry_bg"]),
+            ],
+        )
         self.style.configure(
             "TButton",
             background=colors["accent"],
