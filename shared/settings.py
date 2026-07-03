@@ -3,7 +3,7 @@ from pathlib import Path
 
 
 def get_settings_path() -> Path:
-    settings_dir = Path.home() / "AppData" / "Local" / "WordPagesToImages"
+    settings_dir = Path.home() / "AppData" / "Local" / "WordWorkTool"
     settings_dir.mkdir(parents=True, exist_ok=True)
     return settings_dir / "settings.json"
 

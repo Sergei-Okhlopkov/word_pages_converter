@@ -26,7 +26,7 @@ SIDEBAR_PAD = (10, 12, 12, 12)
 class App:
     def __init__(self, root: Tk):
         self.root = root
-        self.root.title("Pages Converter")
+        self.root.title("WordWorkTool")
         self.root.geometry("960x640")
         self.root.minsize(960, 640)
 

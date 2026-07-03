@@ -1,4 +1,4 @@
-﻿# Pages Converter (Windows)
+﻿# WordWorkTool (Windows)
 
 Набор инструментов для работы с документами: конвертация Word в DOCX с изображениями страниц и создание гиперссылок на задачи в tracker.rddm.team.
 
@@ -13,7 +13,7 @@
 
 ### Overview
 
-**Pages Converter** is a desktop app with a sidebar of tools:
+**WordWorkTool** is a desktop app with a sidebar of tools:
 
 1. **Word to «PDF in Word» conversion** — takes an input Word document and creates a new `.docx` where each original page is inserted as an image.
 2. **Project hyperlinks** — reads a CSV or Excel file and turns issue numbers in the first column (from row 2 onward) into clickable hyperlinks to `https://tracker.rddm.team/issues/{number}`. The result is always saved as Excel (`.xlsx`).
@@ -39,7 +39,7 @@ The app supports light and dark themes (toggle at the bottom of the sidebar). Th
 
 After build, the executable will be available at:
 
-- `dist/WordPagesToImages.exe`
+- `dist/WordWorkTool.exe`
 
 ### Tool 1: Word to «PDF in Word»
 
@@ -69,7 +69,7 @@ The first column (`#`) is processed from row 2: each issue number becomes a hype
 
 ### Описание
 
-**Pages Converter** — настольное приложение с боковым меню инструментов:
+**WordWorkTool** — настольное приложение с боковым меню инструментов:
 
 1. **Конвертация Word в «PDF в Word'е»** — берёт входной Word-документ и создаёт новый `.docx`, где каждая исходная страница вставлена как изображение.
 2. **Гиперссылки для проектов** — загружает CSV или Excel: номера в первом столбце (со 2-й строки) преобразуются в кликабельные гиперссылки на `https://tracker.rddm.team/issues/{номер}`. Результат всегда сохраняется в Excel (`.xlsx`).
@@ -95,7 +95,7 @@ The first column (`#`) is processed from row 2: each issue number becomes a hype
 
 После сборки файл будет доступен:
 
-- `dist/WordPagesToImages.exe`
+- `dist/WordWorkTool.exe`
 
 ### Инструмент 1: Конвертация Word в «PDF в Word'е»
 

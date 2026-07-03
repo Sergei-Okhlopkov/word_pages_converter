@@ -10,8 +10,8 @@ if not exist %VENV_DIR% (
 call %VENV_DIR%\Scripts\activate
 python -m pip install -r requirements.txt
 
-pyinstaller --onefile --windowed --name WordPagesToImages app.py
+pyinstaller --onefile --windowed --name WordWorkTool app.py
 
 echo.
-echo Build finished. EXE: dist\WordPagesToImages.exe
+echo Build finished. EXE: dist\WordWorkTool.exe
 endlocal
