@@ -3,9 +3,12 @@ from pathlib import Path
 
 import docx
 import fitz  # PyMuPDF
-from docx.enum.section import WD_SECTION_START
+from docx.enum.section import WD_ORIENTATION, WD_SECTION_START
 from docx.shared import Inches, Pt
 from win32com.client import DispatchEx
+
+_POINTS_PER_INCH = 72.0
+_MIN_PAGE_INCHES = 0.5
 
 SUPPORTED_INPUT_EXTENSIONS = {
     ".doc",
@@ -35,39 +38,17 @@ def ensure_supported_extension(input_path: str) -> None:
         )
 
 
-def _default_margins_inches() -> dict:
-    """Fallback if PageSetup cannot be read (matches typical Word 'Normal')."""
-    return {
-        "left": 1.0,
-        "right": 1.0,
-        "top": 1.0,
-        "bottom": 1.0,
-        "header": 0.5,
-        "footer": 0.5,
-    }
-
-
-def export_to_pdf_with_word(input_path: str, output_pdf_path: str) -> dict:
-    """Export via Word; returns page margins from the source document (inches)."""
+def export_to_pdf_with_word(input_path: str, output_pdf_path: str) -> None:
+    """Export the source document to PDF via Microsoft Word."""
     wdFormatPDF = 17
 
     word = None
     doc = None
-    margins = _default_margins_inches()
     try:
         word = DispatchEx("Word.Application")
         word.Visible = False
         word.DisplayAlerts = 0
         doc = word.Documents.Open(str(Path(input_path).resolve()))
-        ps = doc.PageSetup
-        margins = {
-            "left": float(ps.LeftMargin) / 72.0,
-            "right": float(ps.RightMargin) / 72.0,
-            "top": float(ps.TopMargin) / 72.0,
-            "bottom": float(ps.BottomMargin) / 72.0,
-            "header": float(ps.HeaderDistance) / 72.0,
-            "footer": float(ps.FooterDistance) / 72.0,
-        }
         doc.SaveAs(str(Path(output_pdf_path).resolve()), FileFormat=wdFormatPDF)
     finally:
         if doc is not None:
@@ -80,22 +61,33 @@ def export_to_pdf_with_word(input_path: str, output_pdf_path: str) -> dict:
                 word.Quit()
             except Exception:
                 pass
-    return margins
 
 
-def configure_section(section, margins: dict) -> None:
-    section.left_margin = Inches(margins["left"])
-    section.right_margin = Inches(margins["right"])
-    section.top_margin = Inches(margins["top"])
-    section.bottom_margin = Inches(margins["bottom"])
-    section.header_distance = Inches(margins["header"])
-    section.footer_distance = Inches(margins["footer"])
+def _page_size_inches(pdf_page) -> tuple[float, float]:
+    page_width = max(_MIN_PAGE_INCHES, pdf_page.rect.width / _POINTS_PER_INCH)
+    page_height = max(_MIN_PAGE_INCHES, pdf_page.rect.height / _POINTS_PER_INCH)
+    return page_width, page_height
 
 
-def pdf_to_docx_images(pdf_path: str, output_docx_path: str, dpi: int, on_progress, margins: dict) -> None:
+def _configure_section_for_full_page(section, pdf_page) -> tuple[float, float]:
+    page_width, page_height = _page_size_inches(pdf_page)
+    section.orientation = (
+        WD_ORIENTATION.LANDSCAPE if page_width > page_height else WD_ORIENTATION.PORTRAIT
+    )
+    section.page_width = Inches(page_width)
+    section.page_height = Inches(page_height)
+    section.left_margin = Inches(0)
+    section.right_margin = Inches(0)
+    section.top_margin = Inches(0)
+    section.bottom_margin = Inches(0)
+    section.header_distance = Inches(0)
+    section.footer_distance = Inches(0)
+    return page_width, page_height
+
+
+def pdf_to_docx_images(pdf_path: str, output_docx_path: str, dpi: int, on_progress) -> None:
     pdf_doc = fitz.open(pdf_path)
     out_doc = docx.Document()
-    configure_section(out_doc.sections[0], margins)
 
     try:
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -116,26 +108,23 @@ def pdf_to_docx_images(pdf_path: str, output_docx_path: str, dpi: int, on_progre
             for i, (img_path, img_w_px, img_h_px) in enumerate(image_infos):
                 if i > 0:
                     section = out_doc.add_section(WD_SECTION_START.NEW_PAGE)
-                    configure_section(section, margins)
                 else:
                     section = out_doc.sections[0]
 
-                max_width_inches = section.page_width.inches - section.left_margin.inches - section.right_margin.inches
-                max_height_inches = section.page_height.inches - section.top_margin.inches - section.bottom_margin.inches
-                max_height_inches = max(0.5, max_height_inches - 0.02)
+                page_width, page_height = _configure_section_for_full_page(section, pdf_doc[i])
 
                 img_aspect = img_w_px / img_h_px
-                box_aspect = max_width_inches / max_height_inches
+                page_aspect = page_width / page_height
 
                 paragraph = out_doc.add_paragraph()
                 paragraph.paragraph_format.space_before = Pt(0)
                 paragraph.paragraph_format.space_after = Pt(0)
                 run = paragraph.add_run()
 
-                if img_aspect >= box_aspect:
-                    run.add_picture(str(img_path), width=Inches(max_width_inches))
+                if img_aspect >= page_aspect:
+                    run.add_picture(str(img_path), width=Inches(page_width))
                 else:
-                    run.add_picture(str(img_path), height=Inches(max_height_inches))
+                    run.add_picture(str(img_path), height=Inches(page_height))
 
                 if on_progress:
                     on_progress("insert", i + 1, len(image_infos))
@@ -161,8 +150,8 @@ def convert_document(input_path: str, on_progress=None, output_dir: Path | None 
         temp_pdf = str(Path(temp_dir) / "intermediate.pdf")
         if on_progress:
             on_progress("status", "Экспорт документа в PDF через Microsoft Word...")
-        margins = export_to_pdf_with_word(input_path, temp_pdf)
+        export_to_pdf_with_word(input_path, temp_pdf)
         if on_progress:
             on_progress("status", "Рендер страниц и сборка DOCX...")
-        pdf_to_docx_images(temp_pdf, str(output_path), dpi=220, on_progress=on_progress, margins=margins)
+        pdf_to_docx_images(temp_pdf, str(output_path), dpi=220, on_progress=on_progress)
     return output_path
