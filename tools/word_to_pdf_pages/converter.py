@@ -9,6 +9,9 @@ from win32com.client import DispatchEx
 
 _POINTS_PER_INCH = 72.0
 _MIN_PAGE_INCHES = 0.5
+# Standard Word "Normal" template margins (1" / 2.54 cm on all sides).
+_WORD_MARGIN_INCHES = 1.0
+_WORD_HEADER_FOOTER_DISTANCE_INCHES = 0.5
 
 SUPPORTED_INPUT_EXTENSIONS = {
     ".doc",
@@ -69,20 +72,23 @@ def _page_size_inches(pdf_page) -> tuple[float, float]:
     return page_width, page_height
 
 
-def _configure_section_for_full_page(section, pdf_page) -> tuple[float, float]:
+def _configure_section_for_page(section, pdf_page) -> tuple[float, float, float, float]:
     page_width, page_height = _page_size_inches(pdf_page)
     section.orientation = (
         WD_ORIENTATION.LANDSCAPE if page_width > page_height else WD_ORIENTATION.PORTRAIT
     )
     section.page_width = Inches(page_width)
     section.page_height = Inches(page_height)
-    section.left_margin = Inches(0)
-    section.right_margin = Inches(0)
-    section.top_margin = Inches(0)
-    section.bottom_margin = Inches(0)
-    section.header_distance = Inches(0)
-    section.footer_distance = Inches(0)
-    return page_width, page_height
+    section.left_margin = Inches(_WORD_MARGIN_INCHES)
+    section.right_margin = Inches(_WORD_MARGIN_INCHES)
+    section.top_margin = Inches(_WORD_MARGIN_INCHES)
+    section.bottom_margin = Inches(_WORD_MARGIN_INCHES)
+    section.header_distance = Inches(_WORD_HEADER_FOOTER_DISTANCE_INCHES)
+    section.footer_distance = Inches(_WORD_HEADER_FOOTER_DISTANCE_INCHES)
+
+    content_width = max(_MIN_PAGE_INCHES, page_width - 2 * _WORD_MARGIN_INCHES)
+    content_height = max(_MIN_PAGE_INCHES, page_height - 2 * _WORD_MARGIN_INCHES)
+    return page_width, page_height, content_width, content_height
 
 
 def pdf_to_docx_images(pdf_path: str, output_docx_path: str, dpi: int, on_progress) -> None:
@@ -111,20 +117,20 @@ def pdf_to_docx_images(pdf_path: str, output_docx_path: str, dpi: int, on_progre
                 else:
                     section = out_doc.sections[0]
 
-                page_width, page_height = _configure_section_for_full_page(section, pdf_doc[i])
+                _, _, content_width, content_height = _configure_section_for_page(section, pdf_doc[i])
 
                 img_aspect = img_w_px / img_h_px
-                page_aspect = page_width / page_height
+                content_aspect = content_width / content_height
 
                 paragraph = out_doc.add_paragraph()
                 paragraph.paragraph_format.space_before = Pt(0)
                 paragraph.paragraph_format.space_after = Pt(0)
                 run = paragraph.add_run()
 
-                if img_aspect >= page_aspect:
-                    run.add_picture(str(img_path), width=Inches(page_width))
+                if img_aspect >= content_aspect:
+                    run.add_picture(str(img_path), width=Inches(content_width))
                 else:
-                    run.add_picture(str(img_path), height=Inches(page_height))
+                    run.add_picture(str(img_path), height=Inches(content_height))
 
                 if on_progress:
                     on_progress("insert", i + 1, len(image_infos))
